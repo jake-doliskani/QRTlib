@@ -154,8 +154,6 @@ def U_N_dagger_gate(
 
     ctrl_dec_by_1(circuit, anc_qubits[1:], target_qubits)
 
-    #
-
 
 def G_gate(circuit: QuantumCircuit, target_qubits: list[int], anc_qubits: list[int]):
     """
