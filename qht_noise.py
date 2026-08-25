@@ -1,3 +1,4 @@
+import csv
 import numpy as np
 
 import matplotlib
@@ -17,11 +18,8 @@ from qiskit_aer.noise import NoiseModel, depolarizing_error
 from QHTGate import QHTGate
 
 
-# ============================================================
-# SETTINGS
-# ============================================================
 
-data_qubit_values = [3, 4, 5, 6]
+data_qubit_values = list(range(3, 12))
 
 noise_values = np.array([
     0.0,
@@ -32,10 +30,11 @@ noise_values = np.array([
 
 basis_gates = ["u", "cx"]
 
+csv_filename = "qht_noise_results_3to11.csv"
 
-# ============================================================
-# ARRAYS FOR RESULTS
-# ============================================================
+plot_filename = "qht_noise_3d_3to11.pdf"
+
+
 
 fidelity_lcu = np.zeros(
     (
@@ -52,9 +51,28 @@ fidelity_rec = np.zeros(
 )
 
 
-# ============================================================
-# LOOP OVER NUMBER OF DATA QUBITS
-# ============================================================
+
+csv_file = open(
+    csv_filename,
+    "w",
+    newline="",
+)
+
+csv_writer = csv.writer(csv_file)
+
+csv_writer.writerow([
+    "data_qubits",
+    "method",
+    "total_qubits",
+    "noise_strength",
+    "fidelity",
+    "depth",
+    "u_count",
+    "cx_count",
+    "total_gate_count",
+])
+
+
 
 for i, num_data_qubits in enumerate(data_qubit_values):
 
@@ -63,10 +81,6 @@ for i, num_data_qubits in enumerate(data_qubit_values):
     print("DATA QUBITS =", num_data_qubits)
     print("=" * 60)
 
-
-    # ========================================================
-    # CREATE THE TWO QHT GATES
-    # ========================================================
 
     qht_lcu = QHTGate(
         num_qubits=num_data_qubits,
@@ -91,10 +105,6 @@ for i, num_data_qubits in enumerate(data_qubit_values):
     )
 
 
-    # ========================================================
-    # CREATE CIRCUITS
-    # ========================================================
-
     qc_lcu = QuantumCircuit(
         qht_lcu.num_qubits
     )
@@ -114,10 +124,6 @@ for i, num_data_qubits in enumerate(data_qubit_values):
         range(qht_rec.num_qubits)
     )
 
-
-    # ========================================================
-    # IDEAL OUTPUTS
-    # ========================================================
 
     ideal_lcu_full = Statevector.from_instruction(
         qc_lcu
@@ -144,7 +150,7 @@ for i, num_data_qubits in enumerate(data_qubit_values):
     )
 
 
-    # Keep only the ideal DATA-QUBIT state
+    # Keep only DATA qubits
     ideal_lcu = partial_trace(
         ideal_lcu_full,
         lcu_ancillas
@@ -174,19 +180,44 @@ for i, num_data_qubits in enumerate(data_qubit_values):
 
 
     # ========================================================
-    # PRINT CIRCUIT INFORMATION
+    # CIRCUIT INFORMATION
     # ========================================================
+
+    counts_lcu = qc_lcu.count_ops()
+    counts_rec = qc_rec.count_ops()
+
+    depth_lcu = qc_lcu.depth()
+    depth_rec = qc_rec.depth()
+
+    u_lcu = counts_lcu.get("u", 0)
+    cx_lcu = counts_lcu.get("cx", 0)
+
+    u_rec = counts_rec.get("u", 0)
+    cx_rec = counts_rec.get("cx", 0)
+
+    total_gates_lcu = sum(
+        counts_lcu.values()
+    )
+
+    total_gates_rec = sum(
+        counts_rec.values()
+    )
+
 
     print()
 
     print("LCU")
     print(
         "Gate counts:",
-        qc_lcu.count_ops()
+        counts_lcu
+    )
+    print(
+        "Total gates:",
+        total_gates_lcu
     )
     print(
         "Depth:",
-        qc_lcu.depth()
+        depth_lcu
     )
 
 
@@ -195,17 +226,18 @@ for i, num_data_qubits in enumerate(data_qubit_values):
     print("Recursive")
     print(
         "Gate counts:",
-        qc_rec.count_ops()
+        counts_rec
+    )
+    print(
+        "Total gates:",
+        total_gates_rec
     )
     print(
         "Depth:",
-        qc_rec.depth()
+        depth_rec
     )
 
 
-    # ========================================================
-    # LOOP OVER NOISE VALUES
-    # ========================================================
 
     for j, p in enumerate(noise_values):
 
@@ -233,8 +265,10 @@ for i, num_data_qubits in enumerate(data_qubit_values):
         )
 
 
+        
+
         simulator = AerSimulator(
-            method="density_matrix",
+            method="matrix_product_state",
             noise_model=noise_model,
         )
 
@@ -245,8 +279,6 @@ for i, num_data_qubits in enumerate(data_qubit_values):
 
         noisy_lcu = qc_lcu.copy()
 
-
-        # Save only DATA qubits
         noisy_lcu.save_density_matrix(
             qubits=list(
                 range(num_data_qubits)
@@ -280,8 +312,6 @@ for i, num_data_qubits in enumerate(data_qubit_values):
 
         noisy_rec = qc_rec.copy()
 
-
-        # Save only DATA qubits
         noisy_rec.save_density_matrix(
             qubits=list(
                 range(num_data_qubits)
@@ -309,6 +339,7 @@ for i, num_data_qubits in enumerate(data_qubit_values):
         fidelity_rec[i, j] = F_rec
 
 
+
         print(
             "LCU fidelity:",
             F_lcu
@@ -320,19 +351,48 @@ for i, num_data_qubits in enumerate(data_qubit_values):
         )
 
 
-# ============================================================
-# CREATE GRID FOR 3D PLOT
-# ============================================================
+        csv_writer.writerow([
+            num_data_qubits,
+            "LCU",
+            qht_lcu.num_qubits,
+            p,
+            F_lcu,
+            depth_lcu,
+            u_lcu,
+            cx_lcu,
+            total_gates_lcu,
+        ])
+
+
+
+        csv_writer.writerow([
+            num_data_qubits,
+            "REC",
+            qht_rec.num_qubits,
+            p,
+            F_rec,
+            depth_rec,
+            u_rec,
+            cx_rec,
+            total_gates_rec,
+        ])
+
+
+        
+        csv_file.flush()
+
+
+
+
+csv_file.close()
+
+
 
 noise_grid, qubit_grid = np.meshgrid(
     noise_values,
     data_qubit_values,
 )
 
-
-# ============================================================
-# CREATE 3D FIGURE
-# ============================================================
 
 fig = plt.figure(
     figsize=(11, 8)
@@ -343,10 +403,6 @@ ax = fig.add_subplot(
     projection="3d"
 )
 
-
-# ============================================================
-# LCU SURFACE
-# ============================================================
 
 ax.plot_surface(
     qubit_grid,
@@ -360,9 +416,6 @@ ax.plot_surface(
 )
 
 
-# ============================================================
-# RECURSIVE SURFACE
-# ============================================================
 
 ax.plot_surface(
     qubit_grid,
@@ -376,9 +429,6 @@ ax.plot_surface(
 )
 
 
-# ============================================================
-# LABELS
-# ============================================================
 
 ax.set_xlabel(
     "Number of data qubits",
@@ -405,22 +455,19 @@ ax.set_title(
 )
 
 
-# ============================================================
-# AXIS TICKS
-# ============================================================
-
-# Only actual tested qubit values
 ax.set_xticks(
     data_qubit_values
 )
 
-# Only actual tested noise values
 ax.set_yticks(
     noise_values
 )
 
 ax.set_yticklabels(
-    [f"{p:.4f}" for p in noise_values]
+    [
+        f"{p:.4f}"
+        for p in noise_values
+    ]
 )
 
 ax.set_zlim(
@@ -429,19 +476,11 @@ ax.set_zlim(
 )
 
 
-# ============================================================
-# BETTER VIEWING ANGLE
-# ============================================================
-
 ax.view_init(
     elev=25,
     azim=-55,
 )
 
-
-# ============================================================
-# LEGEND
-# ============================================================
 
 from matplotlib.patches import Patch
 
@@ -452,6 +491,7 @@ legend_elements = [
         label="QHT LCU",
         alpha=0.60,
     ),
+
     Patch(
         facecolor="tab:orange",
         edgecolor="black",
@@ -460,6 +500,7 @@ legend_elements = [
     ),
 ]
 
+
 ax.legend(
     handles=legend_elements,
     loc="upper right",
@@ -467,21 +508,29 @@ ax.legend(
 )
 
 
-# ============================================================
-# SAVE FIGURE
-# ============================================================
 
 plt.tight_layout()
 
 plt.savefig(
-    "qht_noise_3d_3to6.pdf",
+    plot_filename,
     bbox_inches="tight",
 )
 
 plt.close()
 
 
+
 print()
+print("=" * 60)
+print("DONE")
+print("=" * 60)
+
 print(
-    "Saved: qht_noise_3d_3to6.pdf"
+    "CSV saved:",
+    csv_filename
+)
+
+print(
+    "Plot saved:",
+    plot_filename
 )
