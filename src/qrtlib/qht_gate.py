@@ -97,7 +97,7 @@ class QHTGate(Gate):
         definition_circuit = QuantumCircuit(self.num_qubits, name=self.name)
         
         if self.type == "LCU":
-            from qht import _build_qht_lcu
+            from .qht import _build_qht_lcu
             if len(self.data_qubits) == 1:
                 _build_qht_lcu(definition_circuit, None, None, self.data_qubits, self.ancilla_qubits)
             else:
@@ -110,7 +110,7 @@ class QHTGate(Gate):
                 _build_qht_lcu(definition_circuit, helper, selector, data_qubits, anc_qubits)
         
         elif self.type == "REC":
-            from qht import _build_qht_rec
+            from .qht import _build_qht_rec
             
         
             if len(self.data_qubits) == 1:

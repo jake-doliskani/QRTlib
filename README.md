@@ -19,11 +19,19 @@ This library implements **Quantum Real Transforms (QRTs)**, including:
 
 ## Installation
 
-To install dependencies:
-```bash
-pip install -r requirements.txt
+Install QRTlib from the repository root:
 
+```bash
+python -m pip install .
 ```
+
+For an editable development installation with the test, build, and lint tools:
+
+```bash
+python -m pip install -e ".[dev]"
+```
+
+QRTlib requires Python 3.11 or newer.
 
 ## Usage example
 The following snippet adds Quantum Hartley Transform (QHT) to your circuit using LCU method:
@@ -33,7 +41,7 @@ The following snippet adds Quantum Hartley Transform (QHT) to your circuit using
 
 ```python
 from qiskit import QuantumCircuit
-from QHTGate import QHTGate
+from qrtlib import QHTGate
 
 
 
@@ -43,6 +51,9 @@ qc = QuantumCircuit(8)
 qc.append(gate, list(range(8)))
 
 ```
+
+The public gate classes are also available as `qrtlib.QCTGate` and
+`qrtlib.QSTGate`.
 
 
 ## References
